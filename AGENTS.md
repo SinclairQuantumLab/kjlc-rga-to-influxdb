@@ -20,7 +20,8 @@ Promote eligible reusable corrections during the task, not only at handoff.
 - Continuous means successive finite acquisitions with no added pause. Do not
   silently substitute an unbounded in-memory indefinite library record.
 - A cursor read or scan start must not be automatically retried by the relay.
-  Never force control or change emission/detector settings implicitly.
+  The relay explicitly uses measure(force=True) as selected by the user.
+  Do not add control-request stdout notices or change emission/detector settings.
 - Keep AMU tags canonical and one host timestamp per spectrum. Validate report
   units/type from actual channel readback and log them; do not upload them as tags.
   ScanElapsedTime[ms] stores channel 1's schedule timer unchanged as an integer;

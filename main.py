@@ -133,7 +133,7 @@ try:
         # Do not reconnect/retry ambiguous starts or cursor-advancing reads.
         # The library waits for actual completion, using device timing estimates.
         # interval_s is never passed as a scan timeout.
-        record = RGA.measure(CHANNELS, scan_count=1, capacity=1, timeout=None)
+        record = RGA.measure(CHANNELS, scan_count=1, capacity=1, timeout=None, force=True)
         scan_returned = time.monotonic()
         observed_ns = time.time_ns()
         if observed_ns <= last_timestamp_ns:

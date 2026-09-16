@@ -40,7 +40,8 @@ after scan return, or successive scans with no added pause.
 
 Prepare the instrument's filament/emission, detector, calibration and reporting
 settings, and confirm that no other scan is running. The relay configures scan
-channels and starts acquisition; it does not enable emission or force control.
+channels and starts acquisition using the library's forced control request;
+it does not enable emission.
 
 1. Inspect one scan before enabling upload:
 
@@ -268,8 +269,9 @@ validation; registering SIGTERM does not make a forced Windows kill catchable.
   The import is `kjlc_rga`, not `py_kjlc_rga`.
 - Missing credentials: initialize `imaq-secret` using an account with lab access.
   Acquisition-only `--dry-run` works without it.
-- Control refused/already scanning: finish the existing instrument run first.
-  The relay does not automatically take control from another user.
+- Already scanning: finish the existing instrument run first.
+  The relay requests control with `force=True`, but the library still refuses
+  to configure an instrument that is already scanning.
 - Frequent overrun warnings: increase `interval_s`, reduce acquisition cost, or
   choose `continuous` if no target period is needed. Do not shorten an HTTP
   timeout to enforce a scan period.

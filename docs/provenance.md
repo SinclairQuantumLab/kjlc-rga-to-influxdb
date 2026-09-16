@@ -220,3 +220,17 @@ table and changed main.py to read the mass keys directly from the root mapping.
 All values and the user's comments are preserved. README, test inputs, and
 workspace guidance now use the flat layout. All 27 offline tests, Ruff, and
 mocked execution of all three template modes passed; no live operation occurred.
+
+## Forced control request (2026-09-16)
+
+The user's dry-run failed with anotherSessionInControl (code 153) on the
+communication/control request. The relay had omitted force, using the library's
+ordinary-request default. As requested, measure now receives force=True; the
+library owns the control request and verification. No stdout notice, interactive
+prompt, extra setting, retry, or implicit stop of an existing scan was added.
+The library default and source code remain unchanged. README and workspace
+instructions now describe this relay's explicitly selected control policy.
+
+All 27 offline tests and Ruff passed, including the acquisition call contract.
+The supplied error is user-run evidence; this fix was not tested on the device
+by the agent. No acquisition, upload, or service restart was performed.

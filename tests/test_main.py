@@ -166,7 +166,7 @@ class RelayTests(unittest.TestCase):
         self.assertEqual(s.exit_code, 130, s.stderr.getvalue())
         self.assertEqual(s.starts, [0, 10])
         self.assertEqual(s.waits, [6])
-        self.assertEqual(s.calls[0][1], {"scan_count": 1, "capacity": 1, "timeout": None})
+        self.assertEqual(s.calls[0][1], {"scan_count": 1, "capacity": 1, "timeout": None, "force": True})
         self.assertEqual(s.calls[0][0][3].mode.mass_axis().tolist(), [18, 18.2, 18.4])
 
     def test_overrun_finishes_scan_warns_and_starts_immediately(self) -> None:
