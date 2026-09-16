@@ -90,7 +90,7 @@ ppamu = 5 # Points per amu; mass spacing = 1 / ppamu.
 dwell_ms = 32 # Milliseconds spent measuring each mass point.
 ```
 
-Channel 1 records the raw device timestamp, channel 3 records the Sweep, and
+Channel 1 records scan-schedule elapsed milliseconds, channel 3 records the Sweep, and
 channel 2 is disabled. Sweep endpoints are inclusive: `(200 - 1) * 5 + 1 = 996`
 mass points. Endpoints must lie on the selected mass grid. The library checks
 the device's supported `ppamu` values and verifies actual configuration readback.
@@ -158,13 +158,18 @@ overwriting a previous scan. This safeguard does not persist across restarts.
 | `Serial number` | `/mmsp/electronicsInfo/serialNumber` read at startup |
 | `channel` | Actual Sweep channel ID, currently `3` |
 | `amu` | Canonical mass string, e.g. `18`, `18.2`, `18.25` |
-| `report_units` | Actual channel `reportUnits` readback |
-| `report_type` | Actual channel `reportType` readback |
 
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `Pressure[Torr]` | float | Default spectrum field; requires absolute Torr readback |
-| `device_timestamp_raw` | integer | Channel 1's raw unsigned 32-bit reading, preserved without an assumed epoch or conversion |
+| `ScanElapsedTime[ms]` | integer | Channel 1's elapsed milliseconds since the scan schedule started |
+
+`ScanElapsedTime[ms]` preserves the device's unsigned 32-bit value. The relay
+verifies the Timestamp channel's schedule-timer selector (`startMassRaw=1`),
+defined in the [device API](py-kjlc-rga/device-docs/api-guide/text/scanSetup.txt).
+This is the timer reading when channel 1 is sampled, not the duration of the
+complete sweep, device uptime, or a UTC timestamp. InfluxDB `_time` continues
+to use the host receipt time described above.
 
 **AMU is a tag because it identifies a repeated mass bin.** InfluxDB identifies
 points by measurement, tag set and timestamp. With AMU only as a field, equal-time
@@ -173,8 +178,8 @@ also make a selected mass's time trace easy to filter. This follows InfluxDB's
 [tag/query guidance](https://docs.influxdata.com/influxdb/v2/write-data/best-practices/schema-design/)
 and [point identity rules](https://docs.influxdata.com/influxdb/v2/write-data/best-practices/duplicate-points/).
 
-The default grid creates 996 mass tag combinations per device/channel/reporting
-combination, reused across scans. Changing grids increases the union of sampled
+The default grid creates 996 mass tag combinations per device/channel,
+reused across scans. Changing grids increases the union of sampled
 masses; scan numbers and timestamps are never tags. The default writes 996 points
 per scan, about 1.43 million points/day at 60 s intervals.
 Retention and downsampling should reflect the desired spectrum history.
@@ -194,11 +199,18 @@ label alone is not proof of Torr units. No pressure-reporting API writes or
 current-to-pressure conversion are guessed by this application.
 
 To deliberately store another reported quantity, uncomment and rename the field,
-for example `value_field = "Signal"` for unconverted current readings. The
-`report_units` and `report_type` tags remain mandatory and preserve actual
-readback. This option changes only the InfluxDB field name, not acquisition,
-calibration or units; the deployer is responsible for a custom name's meaning.
-Field names cannot collide with the raw timestamp, tags or reserved names.
+for example `value_field = "Signal"` for unconverted current readings. Actual
+reporting units/type are logged, including during dry-run, but are not uploaded
+as tags. This option changes only the InfluxDB field name, not acquisition,
+calibration or units. Choose distinct descriptive field names when storing
+different units or absolute/relative quantities, since reporting tags no longer
+separate them. Field names cannot collide with `ScanElapsedTime[ms]`, tags or
+reserved names.
+
+This schema replaces `device_timestamp_raw` with `ScanElapsedTime[ms]` and
+removes the `report_units` and `report_type` tags for new writes. Existing data
+is not rewritten; update old field references and reporting-tag filters in
+queries or dashboards when switching to the new schema.
 
 Pressure/current values and the JSON nonfinite
 sentinel `-9.999999e-31` are preserved as returned (float32 precision); the
@@ -206,15 +218,13 @@ sentinel is not a physical negative pressure and is not converted to zero.
 No baseline subtraction, peak integration, normalization or pressure conversion
 is performed. The points are not a full instrument-configuration archive.
 
-For an InfluxDB 2/Flux time trace of mass 18, filter the device and reporting
-combination explicitly:
+For an InfluxDB 2/Flux time trace of mass 18, filter the field, device and channel:
 
 ```flux
 from(bucket: "<BUCKET>")
   |> range(start: -1h)
   |> filter(fn: (r) => r._measurement == "kjlc-rga" and r._field == "Pressure[Torr]")
   |> filter(fn: (r) => r["Serial number"] == "<SERIAL>" and r.channel == "3")
-  |> filter(fn: (r) => r.report_units == "Torr" and r.report_type == "Absolute")
   |> filter(fn: (r) => r.amu == "18")
 ```
 

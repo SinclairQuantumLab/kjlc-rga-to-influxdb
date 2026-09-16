@@ -21,8 +21,10 @@ Promote eligible reusable corrections during the task, not only at handoff.
   silently substitute an unbounded in-memory indefinite library record.
 - A cursor read or scan start must not be automatically retried by the relay.
   Never force control or change emission/detector settings implicitly.
-- Keep AMU tags canonical, one timestamp per spectrum, and report units/type
-  from actual channel readback. Device timestamps remain raw until verified.
+- Keep AMU tags canonical and one host timestamp per spectrum. Validate report
+  units/type from actual channel readback and log them; do not upload them as tags.
+  ScanElapsedTime[ms] stores channel 1's schedule timer unchanged as an integer;
+  verify Timestamp mode and startMassRaw=1. It is not uptime or a UTC timestamp.
 - Default spectrum field is Pressure[Torr], with value_field normally commented
   out in settings. Require absolute Torr readback for that name. A custom name
   changes labeling only; it must never silently perform a unit conversion.

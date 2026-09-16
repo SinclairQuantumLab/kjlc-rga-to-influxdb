@@ -161,3 +161,38 @@ timing keys absent. The real public model confirmed 996 points from 1 through
 200 at ppamu=5 and the fractional-boundary grid examples. No instrument or
 InfluxDB connection was made. Reusable comment and mode-example guidance was
 promoted to the canonical skill's author-preferences reference and validated.
+
+## Reporting tags and elapsed-time schema (2026-09-16)
+
+The user explicitly selected removal of report_units/report_type upload tags
+and the field name ScanElapsedTime[ms]. The default Pressure[Torr] path still
+requires actual Torr/Absolute readback. Reporting metadata remains in normal
+and dry-run logs. A custom value_field still stores unconverted values; its
+name must distinguish quantities that reporting tags previously separated.
+
+ScanElapsedTime[ms] replaces device_timestamp_raw without changing its integer
+value or the host receipt timestamp used for InfluxDB time. The captured device
+API defines U32 selector 1 as milliseconds since the scan schedule started;
+selector 0 is power-on elapsed time. Existing channel readback and the local
+September 10 MSD capture both identify Timestamp selector 1. The 728-scan
+capture's increments are consistent with that millisecond interpretation.
+This narrows the earlier statement that timestamp units were unverified; it
+does not establish a UTC mapping. The relay now checks Timestamp mode and the
+actual startMassRaw selector before applying the new field name.
+
+README's schema and Flux example were updated. This affects new writes only;
+no historical InfluxDB data or external dashboards were modified. Acquisition,
+scheduling, mass formatting, and pressure conversion behavior are unchanged.
+
+Validation: 27 offline tests and Ruff passed. Coverage checks the exact reduced
+tag set, integer line protocol, field-name collision, rejection of power-on or
+missing timer selectors, retained pressure validation, and dry-run logging.
+No new instrument operation, InfluxDB connection, or service restart occurred.
+
+The 15-repository family inventory was refreshed; unchanged sibling revisions
+reuse the inspected same-day corpus. This schema decision follows the user's
+target-specific request and the library/API evidence, not a new family schema.
+Skill source refresh reported current-dirty, upstream
+origin/feature/to-influxdb-development, ahead/behind 0/0. Reusable guidance about
+validation versus stored metadata and evidence-based timer naming was promoted
+to author-preferences.md and passed the official skill validator.

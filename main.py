@@ -41,8 +41,8 @@ VALUE_FIELD = SETTINGS.get("value_field", "Pressure[Torr]")
 if not isinstance(VALUE_FIELD, str) or not VALUE_FIELD.strip():
     raise ValueError("value_field must be a nonempty string")
 if VALUE_FIELD in {
-    "device_timestamp_raw", "source", "Serial number", "channel", "amu",
-    "report_units", "report_type", "time", "_field", "_measurement", "_time",
+    "ScanElapsedTime[ms]", "source", "Serial number", "channel", "amu",
+    "time", "_field", "_measurement", "_time",
 }:
     raise ValueError("value_field conflicts with a timestamp, tag, or reserved name")
 if SCAN_MODE not in ("periodic", "fixed_padding", "continuous"):
@@ -168,7 +168,10 @@ try:
                 "pressure reporting or explicitly set value_field for unconverted readings. "
                 "Renaming a field does not convert current to pressure."
             )
-        device_timestamp = int(record.channels[1].values[0])
+        timestamp = record.channels[1]
+        if not isinstance(timestamp.mode, TimestampMode) or timestamp.metadata.get("startMassRaw") != 1:
+            raise ValueError("ScanElapsedTime[ms] requires the Timestamp schedule timer (startMassRaw=1)")
+        scan_elapsed_ms = int(timestamp.values[0])
         influxdb_records = []
         for mass, value in zip(masses, values, strict=True):
             # Live device grids are exact hundredths of an AMU. Formatting avoids
@@ -181,18 +184,19 @@ try:
                     "Serial number": SERIAL_NUMBER,
                     "channel": "3",
                     "amu": amu,
-                    "report_units": report_units,
-                    "report_type": report_type,
                 },
                 "fields": {
                     VALUE_FIELD: float(value),
-                    "device_timestamp_raw": device_timestamp,
+                    "ScanElapsedTime[ms]": scan_elapsed_ms,
                 },
                 "time": observed_ns,
             })
 
         if ARGS.dry_run:
-            log(msg_il + f"Dry-run records, not uploaded: {influxdb_records!r}")
+            log(
+                msg_il + f"Dry-run records, not uploaded; "
+                f"report_units={report_units}, report_type={report_type}: {influxdb_records!r}"
+            )
         else:
             try:
                 INFLUXDB_WRITE_API.write(

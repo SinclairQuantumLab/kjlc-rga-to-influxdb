@@ -34,12 +34,15 @@ dwell_ms = 32
 
 def make_record(
     values: tuple[float, ...] = (1e-10, 2e-10, 3e-10),
-    *, units: str = "Torr", report_type: str = "Absolute",
+    *, units: str = "Torr", report_type: str = "Absolute", timestamp_selector: int | None = 1,
 ) -> RGARecord:
     """Return the public library's record type, without any device connection."""
     return RGARecord(
         {
-            1: RGAChannel(TimestampMode(), np.array([4294967295], dtype=np.uint32)),
+            1: RGAChannel(
+                TimestampMode(), np.array([4294967295], dtype=np.uint32),
+                metadata={} if timestamp_selector is None else {"startMassRaw": timestamp_selector},
+            ),
             3: RGAChannel(
                 SweepMode(18, 18.4, 5, 3, 32),
                 np.array([values], dtype=np.float32),
@@ -234,14 +237,15 @@ class RelayTests(unittest.TestCase):
         self.assertEqual({r["time"] for r in records}, {1_800_000_003_000_000_000})
         self.assertEqual(records[0]["tags"], {
             "source": "KJLC RGA", "Serial number": "TEST-RGA", "channel": "3",
-            "amu": "18", "report_units": "Torr", "report_type": "Absolute",
+            "amu": "18",
         })
         self.assertEqual(records[0]["measurement"], "kjlc-rga")
         self.assertIs(type(records[0]["fields"]["Pressure[Torr]"]), float)
-        self.assertEqual(records[0]["fields"]["device_timestamp_raw"], 4294967295)
+        self.assertEqual(set(records[0]["fields"]), {"Pressure[Torr]", "ScanElapsedTime[ms]"})
+        self.assertEqual(records[0]["fields"]["ScanElapsedTime[ms]"], 4294967295)
         lines = [Point.from_dict(r).to_line_protocol() for r in records]
         self.assertEqual(len({re.split(r"(?<!\\) ", line, maxsplit=1)[0] for line in lines}), 3)
-        self.assertIn("device_timestamp_raw=4294967295i", lines[0])
+        self.assertIn("ScanElapsedTime[ms]=4294967295i", lines[0])
         self.assertIn("Pressure[Torr]=", lines[0])
         self.assertGreater(s.writes[1]["record"][0]["time"], records[0]["time"])
 
@@ -268,19 +272,32 @@ class RelayTests(unittest.TestCase):
                 self.assertEqual(s.writes, [])
                 self.assertIn("Pressure[Torr] requires", s.stderr.getvalue())
 
-    def test_custom_field_preserves_original_value_and_report_units(self) -> None:
+    def test_custom_field_preserves_value_and_logs_reporting_metadata(self) -> None:
         s = Scenario()
         s.settings = 'value_field = "Signal"\n' + SETTINGS
         s.record = make_record(units="Current")
         s.run()
         self.assertEqual(s.exit_code, 130, s.stderr.getvalue())
         point = s.writes[0]["record"][0]
-        self.assertEqual(point["tags"]["report_units"], "Current")
+        self.assertNotIn("report_units", point["tags"])
+        self.assertNotIn("report_type", point["tags"])
+        self.assertIn("report_units=Current, report_type=Absolute", s.stdout.getvalue())
         self.assertEqual(point["fields"]["Signal"], float(np.float32(1e-10)))
         self.assertNotIn("Pressure[Torr]", point["fields"])
 
-    def test_field_override_cannot_overwrite_raw_timestamp_or_tags(self) -> None:
-        for field in ("device_timestamp_raw", "amu", "_field", ""):
+    def test_elapsed_time_requires_verified_schedule_timer(self) -> None:
+        for selector in (0, None):
+            with self.subTest(selector=selector):
+                s = Scenario()
+                s.record = make_record(timestamp_selector=selector)
+                s.run()
+                self.assertEqual(s.exit_code, 1)
+                self.assertEqual(s.writes, [])
+                self.assertIn("ScanElapsedTime[ms] requires", s.stderr.getvalue())
+                s.source.close.assert_called_once()
+
+    def test_field_override_cannot_overwrite_elapsed_time_or_tags(self) -> None:
+        for field in ("ScanElapsedTime[ms]", "amu", "_field", ""):
             with self.subTest(field=field):
                 s = Scenario()
                 s.settings = f'value_field = "{field}"\n' + SETTINGS
@@ -343,6 +360,11 @@ class RelayTests(unittest.TestCase):
         self.assertEqual(len(s.starts), 1)
         s.influx_factory.assert_not_called()
         self.assertIn("Dry-run records", s.stdout.getvalue())
+        self.assertIn("report_units=Torr, report_type=Absolute", s.stdout.getvalue())
+        self.assertIn("'ScanElapsedTime[ms]': 4294967295", s.stdout.getvalue())
+        self.assertNotIn("'report_units':", s.stdout.getvalue())
+        self.assertNotIn("'report_type':", s.stdout.getvalue())
+        self.assertNotIn("device_timestamp_raw", s.stdout.getvalue())
 
     def test_first_signal_interrupts_scan_and_closes_resources(self) -> None:
         for signum in (signal.SIGINT, signal.SIGTERM):
