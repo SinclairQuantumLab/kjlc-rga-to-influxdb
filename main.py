@@ -114,12 +114,16 @@ try:
     RGA = RGAClient(
         SETTINGS["host"], port=SETTINGS.get("port"), timeout=SETTINGS["timeout_s"]
     )
-    RGA.request_control(force=True) # forcefully take over the RGA control
+    # Force control once at startup, following the library demo.
+    # Later measurements use ordinary requests: another user's takeover must
+    # produce an acquisition error instead of triggering a forced takeover here.
+    RGA.request_control(force=True)
     SERIAL_NUMBER = RGA.get("/mmsp/electronicsInfo/serialNumber")
     if not isinstance(SERIAL_NUMBER, str) or not SERIAL_NUMBER.strip():
         raise ValueError("The RGA did not report a nonempty electronics serial number")
     # <<< KJLC RGA connection <<<
 
+    # Acquisition and upload failures share this counter; success does not reset it.
     lifetime_exception_count = 0
     iteration = 1
     last_timestamp_ns = 0
