@@ -30,6 +30,8 @@ Promote eligible reusable corrections during the task, not only at handoff.
   changes labeling only; it must never silently perform a unit conversion.
 - settings.toml and credential contents are local deployment data. Never read
   imaq-secret for repository research, log credentials, or commit local values.
+- Settings use flat top-level keys, with mass configuration before scan mode.
+  Preserve the user's headings/order and synchronize the sanitized template.
 - Tests execute main.py with runpy and mocked I/O, using real library models.
   Run `uv run python -W error -m unittest discover -s tests -v`,
   `uv run ruff check .`, and `git diff --check` after relevant changes.

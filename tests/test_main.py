@@ -19,16 +19,15 @@ from influxdb_client import Point, WritePrecision
 from kjlc_rga import RGAChannel, RGAError, RGARecord, SweepMode, TimestampMode
 
 ROOT = Path(__file__).resolve().parents[1]
-SETTINGS = '''scan_mode = "periodic"
-interval_s = 10
-padding_s = 5
-host = "instrument.invalid"
+SETTINGS = '''host = "instrument.invalid"
 timeout_s = 3
-[scan]
 start_mass = 18
 stop_mass = 18.4
 ppamu = 5
 dwell_ms = 32
+scan_mode = "periodic"
+interval_s = 10
+padding_s = 5
 '''
 
 

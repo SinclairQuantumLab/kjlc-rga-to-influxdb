@@ -210,3 +210,13 @@ Verified sanitized text equality, parsed TOML scopes, and template execution
 through the existing mocked-I/O harness. All 27 offline tests and Ruff passed.
 No device or InfluxDB operation occurred. The skill now explicitly distinguishes
 questions from edit requests and requires same-task template synchronization.
+
+## Restore the user's settings order (2026-09-16)
+
+The preceding move of mass settings below scan mode did not preserve the user's
+chosen layout. Restored connection settings, mass configuration, then scan mode
+in both local settings and the sanitized template. Removed the unnecessary scan
+table and changed main.py to read the mass keys directly from the root mapping.
+All values and the user's comments are preserved. README, test inputs, and
+workspace guidance now use the flat layout. All 27 offline tests, Ruff, and
+mocked execution of all three template modes passed; no live operation occurred.

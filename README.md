@@ -72,6 +72,12 @@ host = "<HOST>"
 # port = 80
 timeout_s = 3
 
+# Mass vs pressure scan configuration
+start_mass = 1
+stop_mass = 200
+ppamu = 5 # Points per amu; mass spacing = 1 / ppamu.
+dwell_ms = 32 # Milliseconds spent measuring each mass point.
+
 # Uncomment exactly one mode block.
 scan_mode = "continuous"
 
@@ -83,12 +89,6 @@ scan_mode = "continuous"
 
 # value_field = "Pressure[Torr]" # Optional override; normally leave commented.
 
-# Mass vs pressure scan configuration
-[scan]
-start_mass = 1
-stop_mass = 200
-ppamu = 5 # Points per amu; mass spacing = 1 / ppamu.
-dwell_ms = 32 # Milliseconds spent measuring each mass point.
 ```
 
 Channel 1 records scan-schedule elapsed milliseconds, channel 3 records the Sweep, and
@@ -186,7 +186,7 @@ per scan, about 1.43 million points/day at 60 s intervals.
 Retention and downsampling should reflect the desired spectrum history.
 
 The field name defaults to **`Pressure[Torr]`**. Normally leave this optional
-top-level setting commented out (before `[scan]`):
+setting commented out:
 
 ```toml
 # value_field = "Pressure[Torr]"

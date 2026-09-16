@@ -56,15 +56,14 @@ for NAME, VALUE in (("interval_s", INTERVAL_s), ("padding_s", PADDING_s)):
 if SCAN_MODE == "periodic" and INTERVAL_s == 0:
     raise ValueError("interval_s must be positive; use continuous for no pause")
 
-SCAN = SETTINGS["scan"]
 CHANNELS = {
     1: ChannelSettings(TimestampMode()),
     3: ChannelSettings(SweepMode(
-        start_mass=SCAN["start_mass"],
-        stop_mass=SCAN["stop_mass"],
-        ppamu=SCAN["ppamu"],
-        pts_per_chan=round((SCAN["stop_mass"] - SCAN["start_mass"]) * SCAN["ppamu"]) + 1,
-        dwell=SCAN["dwell_ms"],
+        start_mass=SETTINGS["start_mass"],
+        stop_mass=SETTINGS["stop_mass"],
+        ppamu=SETTINGS["ppamu"],
+        pts_per_chan=round((SETTINGS["stop_mass"] - SETTINGS["start_mass"]) * SETTINGS["ppamu"]) + 1,
+        dwell=SETTINGS["dwell_ms"],
     )),
 }
 # <<< load & parse config files <<<
