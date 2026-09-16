@@ -36,8 +36,15 @@ Promote eligible reusable corrections during the task, not only at handoff.
 - Settings use flat top-level keys, with mass configuration before scan mode.
   Preserve the user's headings/order and synchronize the sanitized template.
 - Tests execute main.py with runpy and mocked I/O, using real library models.
-  Run `uv run python -W error -m unittest discover -s tests -v`,
-  `uv run ruff check .`, and `git diff --check` after relevant changes.
+  Choose verification from the actual diff and risk; do not run every check
+  automatically. For comments/docs only, review the diff and run
+  `git diff --check`; skip runtime tests and lint unless syntax is affected.
+  For localized behavior changes, run affected tests and lint changed Python
+  files. Use `uv run python -W error -m unittest discover -s tests -v` and
+  `uv run ruff check .` for broad changes or uncertain impact, especially across
+  scheduling, control ownership, error accounting, cleanup, or output schema.
+  Broaden or repeat checks only when changes, failures, or unresolved risk
+  justify it. Do not add tests solely for wording or other trivial edits.
 - Startup wrappers use the prepared interpreter; do not launch acquisition or
   upload during agent verification without an explicit live-test request.
 - Update README and provenance with behavior/validation changes. Keep task-only
