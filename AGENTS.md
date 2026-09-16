@@ -3,6 +3,10 @@
 Use the canonical `to-influxdb-development` skill for relay work. Read README.md
 and docs/provenance.md, refresh the skill source and repository corpus, and
 inspect staged and unstaged work before editing. Do not copy the skill here.
+Read its author-preferences reference before drafting README changes. Before
+maintaining the skill, read the canonical Sinclair-Agent-Skills root AGENTS.md;
+use its persistent feature/to-influxdb-development branch and publication rules.
+Promote eligible reusable corrections during the task, not only at handoff.
 
 - Keep the direct sequential main.py and public kjlc_rga API boundary. The
   library is an independent Git submodule and editable uv workspace member.

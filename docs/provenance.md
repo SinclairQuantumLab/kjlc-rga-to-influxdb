@@ -1,5 +1,8 @@
 # Implementation provenance and validation
 
+This file preserves dated implementation checkpoints. The final follow-up
+describes the current documentation and publication state.
+
 ## Baseline and survey
 
 Assessed on 2026-09-16. The target was an unborn `main` branch with staged user
@@ -106,3 +109,30 @@ were removed. Normal mode scheduling and complete-spectrum mapping are unchanged
 The 26 offline tests now include interruption during scan, upload, and sleep.
 See [the local Projects audit](signal-audit.md) for sibling changes, validation,
 publication status, and the real worker-thread Events intentionally retained.
+
+## Installation and skill follow-up (2026-09-16)
+
+The relay is now published at `SinclairQuantumLab/kjlc-rga-to-influxdb` on `main`
+(baseline `2111831`). The earlier no-remote statements describe the initial
+workspace, not the current publication state.
+
+The user reconfirmed that Requirements must list only uv. README now starts
+installation with the actual `git clone --recursive` URL, then plain `uv sync`.
+Device preparation is under Usage; existing nonrecursive checkout repair is
+under Troubleshooting. The stale two-signal shutdown troubleshooting sentence
+was corrected to match current first-signal interruption.
+
+The skill source preflight fetched the upstream and reported `current-dirty`,
+ahead/behind 0/0. Its recursive-clone rule was already present; the previous
+README was an application error, not evidence of a missing rule or stale source.
+The canonical skill now explicitly owns uv-only Requirements, installation
+review, and same-task maintenance/publication, plus scoped reusable shutdown
+and blocking-acquisition guidance. The current corpus was refreshed to 15 relays;
+NEG is the closest installation reference, Arroyo confirms dual-submodule
+cloning, and Siglent's extra prerequisites/existing-checkout-first opening are
+documented as counterexamples to the user's requirements.
+
+Plain `uv sync` and imports of `kjlc_rga` and `influxdb_client` passed using the
+project-selected interpreter. Metadata, lockfile, and runtime code are unchanged.
+This documentation follow-up did not run device acquisition or upload, read
+credential contents, or restart a service.

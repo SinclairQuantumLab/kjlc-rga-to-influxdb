@@ -24,7 +24,7 @@ leave its server-side outcome unknown; shutdown does not retry the upload.
 | `seas-neg-power-to-influxdb` | 34 | Pushed `main`: [aecaa32](https://github.com/SinclairQuantumLab/seas-neg-power-to-influxdb/commit/aecaa32967b9fb680f897f8f060cd5ae1cdcd546) |
 | `seas-sip-power-to-influxdb` | 24 | Pushed `main`: [3895a74](https://github.com/SinclairQuantumLab/seas-sip-power-to-influxdb/commit/3895a74437a7db4ae3fb965677412425d54761a4) |
 | `siglent-spd3000-to-influxdb` | 38 | Pushed `main`: [96b4ce9](https://github.com/SinclairQuantumLab/siglent-spd3000-to-influxdb/commit/96b4ce93727e0baca7c33c91273251336d9fd305) |
-| `kjlc-rga-to-influxdb` | 26 | Included in this project's initial local commit; no remote configured |
+| `kjlc-rga-to-influxdb` | 26 | Initial work is now published on `main` at [2111831](https://github.com/SinclairQuantumLab/kjlc-rga-to-influxdb/commit/21118315f562); the original audit had no remote |
 
 Total: 232 passing offline tests. The five existing relay suites passed before
 the change (15, 83, 28, 18, and 32 tests respectively). Each gained six cases
@@ -82,8 +82,9 @@ archives, and credential contents were excluded from maintained-source review.
   or staged; that unrelated local state remains outside the published commit.
 - KJLC had an unborn branch and staged project scaffolding. The requested relay
   implementation, tests, documentation, and existing submodule pins belong in
-  its initial local commit. Publication remains pending a remote repository
-  destination and visibility; this audit does not create a GitHub repository.
+  its initial local commit. Subsequent publication is now visible at
+  `SinclairQuantumLab/kjlc-rga-to-influxdb`, `main` baseline `2111831`; the
+  no-remote limitation recorded during the audit is resolved.
 - No live acquisition, instrument command, InfluxDB upload, startup-wrapper
   execution, service restart, or deployed configuration change was performed.
   Deployment-level shutdown validation requires a separate operational run.

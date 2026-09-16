@@ -6,35 +6,28 @@ after scan return, or successive scans with no added pause.
 
 ## Requirements
 
-- Python 3.14+, Git and uv; Windows or Linux.
-- A reachable KJLC RGA supported by the included library.
-- Instrument preparation: safe filament/emission, detector, calibration and
-  reporting settings, with no other scan running. The relay configures scan
-  channels and starts acquisition; it does not enable emission or force control.
-- For upload, access to the lab's InfluxDB and private `imaq-secret` repository.
-
-The relay has been tested offline. A complete acquisition with the current
-library, real InfluxDB upload, and unattended service operation still need
-hardware acceptance. `--dry-run` **operates the RGA**; it only disables upload.
+- [`uv`](https://docs.astral.sh/uv/)
 
 ## Installation
 
-1. Work from this project directory. The library is the complete
-   `py-kjlc-rga/` Git submodule and an editable uv workspace member. For a checkout
-   obtained from Git, initialize its submodules:
+1. Clone the repository and its submodules:
 
-   ```powershell
-   git submodule update --init --recursive
+   ```bash
+   cd "$HOME/Projects"
+   git clone --recursive https://github.com/SinclairQuantumLab/kjlc-rga-to-influxdb.git
+   cd kjlc-rga-to-influxdb
+   ```
+
+   `--recursive` includes the `py-kjlc-rga` library and `imaq-secret`
+   credential submodule at their expected locations.
+
+2. Set up the project environment:
+
+   ```bash
    uv sync
    ```
 
-   For a fresh clone of a published copy, use `git clone --recurse-submodules`.
-   The credential submodule belongs at `imaq-secret/`; upload reads its
-   `auth.toml` file's `[influxdb]` table (`url`, `token`, `org`, `bucket`). Dry-run
-   does not open credentials or construct an InfluxDB client. This workspace has
-   not yet been published to a relay remote.
-
-2. Create the local configuration if it does not already exist:
+3. Create and edit the local configuration:
 
    ```powershell
    Copy-Item settings.toml.template settings.toml
@@ -43,16 +36,23 @@ hardware acceptance. `--dry-run` **operates the RGA**; it only disables upload.
    On Linux, use `cp settings.toml.template settings.toml`. Edit `host`, review
    the scan settings and select the timing mode. Keep local settings out of Git.
 
-3. After preparing the instrument and confirming it is idle, inspect one scan:
+## Usage
+
+Prepare the instrument's filament/emission, detector, calibration and reporting
+settings, and confirm that no other scan is running. The relay configures scan
+channels and starts acquisition; it does not enable emission or force control.
+
+1. Inspect one scan before enabling upload:
 
    ```powershell
    uv run python main.py --once --dry-run
    ```
 
-   This prints every proposed mass point. Check the device serial, mass range,
-   reporting units/type and values before enabling upload.
+   `--dry-run` **operates the RGA** and prints every proposed mass point, but
+   does not open credentials or upload. Check the device serial, mass range,
+   reporting units/type and values.
 
-4. Upload one scan, then start the selected repeating mode:
+2. Upload one scan, then start the selected repeating mode:
 
    ```powershell
    uv run python main.py --once
@@ -61,6 +61,9 @@ hardware acceptance. `--dry-run` **operates the RGA**; it only disables upload.
 
    Run from the project root. `--settings path/to/file.toml` selects another
    configuration; credentials remain relative to the project root.
+
+The relay has been tested offline. Complete acquisition, real InfluxDB upload,
+and unattended service operation still need hardware acceptance.
 
 ## Scan configuration and timing
 
@@ -231,6 +234,8 @@ validation; registering SIGTERM does not make a forced Windows kill catchable.
 
 ## Troubleshooting
 
+- Existing checkout missing submodules: run `git submodule update --init --recursive`
+  from the project root, then `uv sync`.
 - Missing `kjlc_rga`: initialize `py-kjlc-rga` and run `uv sync` from this root.
   The import is `kjlc_rga`, not `py_kjlc_rga`.
 - Missing credentials: initialize `imaq-secret` using an account with lab access.
@@ -241,7 +246,7 @@ validation; registering SIGTERM does not make a forced Windows kill catchable.
   choose `continuous` if no target period is needed. Do not shorten an HTTP
   timeout to enforce a scan period.
 - A scan takes longer than its estimate: polling continues until a real result
-  or a source error. Stop once to finish normally, twice to interrupt and close.
+  or a source error. Ctrl+C interrupts the scan and attempts cleanup.
 - Default field rejected: configure and verify absolute Torr reporting, or set
   an explicit custom `value_field` for unconverted data. Changing a field label
   does not convert a current. The default check also applies to dry-run.
