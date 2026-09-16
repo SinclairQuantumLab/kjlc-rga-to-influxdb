@@ -4,12 +4,14 @@ host = "<HOST>"
 # port = 80
 timeout_s = 3 # HTTP request timeout
 
+
 # Mass vs pressure scan configuration
 # mass array = start_mass + np.arange(n) / ppamu
 start_mass = 1 # amu
 stop_mass = 200 # amu
 ppamu = 5 # Points per amu; mass spacing = 1 / ppamu.
 dwell_ms = 32 # measurement time at each mass point
+
 
 # Scan mode: uncomment exactly one mode block.
 
