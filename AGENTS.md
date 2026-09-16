@@ -19,8 +19,10 @@ Promote eligible reusable corrections during the task, not only at handoff.
   a finish-first policy or threading synchronization inside signal handlers.
 - Continuous means successive finite acquisitions with no added pause. Do not
   silently substitute an unbounded in-memory indefinite library record.
-- A cursor read or scan start must not be automatically retried by the relay.
-  The relay explicitly uses measure(force=True) as selected by the user.
+- Do not reconnect or retry a cursor read or scan start within a failed cycle.
+  Request control with force=True once, immediately after creating RGAClient;
+  subsequent measure calls must not force control. Library acquisition errors,
+  including control loss, share the existing cumulative upload-error counter.
   Do not add control-request stdout notices or change emission/detector settings.
 - Keep AMU tags canonical and one host timestamp per spectrum. Validate report
   units/type from actual channel readback and log them; do not upload them as tags.

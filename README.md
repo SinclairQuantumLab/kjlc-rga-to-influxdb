@@ -39,9 +39,11 @@ after scan return, or successive scans with no added pause.
 ## Usage
 
 Prepare the instrument's filament/emission, detector, calibration and reporting
-settings, and confirm that no other scan is running. The relay configures scan
-channels and starts acquisition using the library's forced control request;
-it does not enable emission.
+settings, and confirm that no other scan is running. Immediately after creating
+the device session, the relay calls `request_control(force=True)` once, as in
+the library's demo. Subsequent measurements use ordinary control requests;
+they do not force control back from another user. The relay configures scan
+channels and starts acquisition; it does not enable emission.
 
 1. Inspect one scan before enabling upload:
 
@@ -238,13 +240,18 @@ mass grids. Do not sort mass strings lexicographically.
 
 ## Failures and deployment
 
-Acquisition, control loss, malformed results or changed settings cause a nonzero
-exit after cleanup. The relay does not retry scan starts or cursor-advancing
-result requests: a lost HTTP response does not prove the operation did not run.
-Reconcile any active instrument run before restarting.
+During repeating operation, library acquisition errors (including control loss)
+and upload failures share one cumulative counter; the third exits nonzero after
+cleanup. A successful cycle does not reset the counter. Each failed cycle follows
+the selected cadence before the next measurement attempt, without another forced
+takeover or an immediate retry/reconnect. For fixed padding, a failed acquisition
+uses the time the call raised as the pause anchor.
 
-Upload failures count cumulatively; the third exits nonzero, and a successful
-upload does not reset the counter. `--once` exits on its first failure. Failed
+The library does not retry scan starts or cursor-advancing reads, and refuses a
+new run while this session still owns an unfinished run. A lost HTTP response
+does not prove an operation did not run; reconcile active instrument state before
+restarting. Malformed results, invalid settings and initialization failures remain
+fatal. `--once` exits on its first failure. Failed
 uploads are logged and **not queued for replay**. A server may have accepted
 some or all points before a write error; batch upload is not a transactional or
 durable-spooling guarantee. No local measurement archive is created.
@@ -270,8 +277,9 @@ validation; registering SIGTERM does not make a forced Windows kill catchable.
 - Missing credentials: initialize `imaq-secret` using an account with lab access.
   Acquisition-only `--dry-run` works without it.
 - Already scanning: finish the existing instrument run first.
-  The relay requests control with `force=True`, but the library still refuses
-  to configure an instrument that is already scanning.
+  The relay forces control only at startup, and the library refuses to configure
+  an instrument that is already scanning. Later control loss counts as an
+  acquisition error; the relay does not force control back during the loop.
 - Frequent overrun warnings: increase `interval_s`, reduce acquisition cost, or
   choose `continuous` if no target period is needed. Do not shorten an HTTP
   timeout to enforce a scan period.

@@ -234,3 +234,24 @@ instructions now describe this relay's explicitly selected control policy.
 All 27 offline tests and Ruff passed, including the acquisition call contract.
 The supplied error is user-run evidence; this fix was not tested on the device
 by the agent. No acquisition, upload, or service restart was performed.
+
+## Limit forced control to session initialization (2026-09-16)
+
+The user corrected the takeover scope: force once after connection, never on
+each measurement. Followed py-kjlc-rga/demo.py's request_control(force=True)
+call, placed immediately after RGAClient construction and before the serial
+read. Removed force from measure calls. No control-status print was copied.
+This supersedes the per-measure policy above; the library remains unchanged.
+
+The user also required later control-loss errors to pass through the error
+counter. Library RGAError acquisition failures now share the existing cumulative
+counter with upload failures, retaining the threshold of three and first-failure
+exit for --once. Next cycles follow normal cadence without reconnecting or
+forcing control. Failed acquisitions are never mapped/uploaded, and fixed
+padding is measured from the failure return. The library's unfinished-run guard
+continues to prevent starting over an ambiguous owned run.
+
+All 30 offline tests and Ruff passed. Regression coverage verifies one startup
+takeover before serial read, unforced measurements, shared cumulative accounting
+across control loss/upload errors/successes, once behavior and startup cleanup.
+No device acquisition, upload or service restart was performed by the agent.

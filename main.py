@@ -11,7 +11,7 @@ from pathlib import Path
 
 import influxdb_client
 from influxdb_client.client.write_api import SYNCHRONOUS
-from kjlc_rga import ChannelSettings, RGAClient, SweepMode, TimestampMode
+from kjlc_rga import ChannelSettings, RGAClient, RGAError, SweepMode, TimestampMode
 
 from supervisor.supervisor_helper import log, log_error, log_warn
 
@@ -114,6 +114,7 @@ try:
     RGA = RGAClient(
         SETTINGS["host"], port=SETTINGS.get("port"), timeout=SETTINGS["timeout_s"]
     )
+    RGA.request_control(force=True) # forcefully take over the RGA control
     SERIAL_NUMBER = RGA.get("/mmsp/electronicsInfo/serialNumber")
     if not isinstance(SERIAL_NUMBER, str) or not SERIAL_NUMBER.strip():
         raise ValueError("The RGA did not report a nonempty electronics serial number")
@@ -130,96 +131,110 @@ try:
         cycle_started = time.monotonic()
 
         # A scan is an active acquisition, not an idempotent snapshot query.
-        # Do not reconnect/retry ambiguous starts or cursor-advancing reads.
+        # Do not reconnect or retry a failed source call within this cycle.
         # The library waits for actual completion, using device timing estimates.
         # interval_s is never passed as a scan timeout.
-        record = RGA.measure(CHANNELS, scan_count=1, capacity=1, timeout=None, force=True)
-        scan_returned = time.monotonic()
-        observed_ns = time.time_ns()
-        if observed_ns <= last_timestamp_ns:
-            log_warn(msg_il + "Host clock did not advance; advancing the scan timestamp by 1 ns.")
-            observed_ns = last_timestamp_ns + 1
-        last_timestamp_ns = observed_ns
-
-        if record.state != "complete" or len(record) != 1:
-            raise ValueError("Expected exactly one complete scan; no partial spectrum uploaded")
-        sweep = record.channels[3]
-        if not isinstance(sweep.mode, SweepMode):
-            raise ValueError("Channel 3 did not return a Sweep")
-        masses = sweep.mode.mass_axis()
-        values = sweep.values[0]
-        if len(values) != len(masses) or not all(math.isfinite(float(v)) for v in values):
-            raise ValueError("Invalid spectrum; no partial spectrum uploaded")
-
-        # Use the actual readback. Sweep values may be Current, not pressure.
-        report_units = sweep.metadata["reportUnits"]
-        report_type = sweep.metadata["reportType"]
-        if not isinstance(report_units, str) or not report_units:
-            raise ValueError("Missing reportUnits in channel readback")
-        if not isinstance(report_type, str) or not report_type:
-            raise ValueError("Missing reportType in channel readback")
-        if VALUE_FIELD == "Pressure[Torr]" and (
-            report_units.casefold() != "torr" or report_type.casefold() != "absolute"
-        ):
-            raise ValueError(
-                "Pressure[Torr] requires reportUnits=Torr and reportType=Absolute; "
-                f"got {report_units!r}/{report_type!r}. Configure verified instrument "
-                "pressure reporting or explicitly set value_field for unconverted readings. "
-                "Renaming a field does not convert current to pressure."
+        try:
+            record = RGA.measure(CHANNELS, scan_count=1, capacity=1, timeout=None)
+        except RGAError as ex:
+            scan_returned = time.monotonic()
+            if ARGS.once:
+                raise
+            lifetime_exception_count += 1
+            log_error(
+                f"{msg_il}Acquisition failed ({lifetime_exception_count}/{EX_THRESHOLD} lifetime): "
+                f"{type(ex).__name__}: {ex}."
             )
-        timestamp = record.channels[1]
-        if not isinstance(timestamp.mode, TimestampMode) or timestamp.metadata.get("startMassRaw") != 1:
-            raise ValueError("ScanElapsedTime[ms] requires the Timestamp schedule timer (startMassRaw=1)")
-        scan_elapsed_ms = int(timestamp.values[0])
-        influxdb_records = []
-        for mass, value in zip(masses, values, strict=True):
-            # Live device grids are exact hundredths of an AMU. Formatting avoids
-            # float artifacts creating extra series (e.g. 18.200000000000003).
-            amu = f"{float(mass):.2f}".rstrip("0").rstrip(".")
-            influxdb_records.append({
-                "measurement": MEASUREMENT,
-                "tags": {
-                    "source": "KJLC RGA",
-                    "Serial number": SERIAL_NUMBER,
-                    "channel": "3",
-                    "amu": amu,
-                },
-                "fields": {
-                    VALUE_FIELD: float(value),
-                    "ScanElapsedTime[ms]": scan_elapsed_ms,
-                },
-                "time": observed_ns,
-            })
-
-        if ARGS.dry_run:
-            log(
-                msg_il + f"Dry-run records, not uploaded; "
-                f"report_units={report_units}, report_type={report_type}: {influxdb_records!r}"
-            )
+            if lifetime_exception_count >= EX_THRESHOLD:
+                log_error("Exception threshold reached. Raising to supervisor.")
+                raise
         else:
-            try:
-                INFLUXDB_WRITE_API.write(
-                    bucket=INFLUXDB_BUCKET,
-                    org=INFLUXDB_ORG,
-                    record=influxdb_records,
-                    write_precision=influxdb_client.WritePrecision.NS,
+            scan_returned = time.monotonic()
+            observed_ns = time.time_ns()
+            if observed_ns <= last_timestamp_ns:
+                log_warn(msg_il + "Host clock did not advance; advancing the scan timestamp by 1 ns.")
+                observed_ns = last_timestamp_ns + 1
+            last_timestamp_ns = observed_ns
+
+            if record.state != "complete" or len(record) != 1:
+                raise ValueError("Expected exactly one complete scan; no partial spectrum uploaded")
+            sweep = record.channels[3]
+            if not isinstance(sweep.mode, SweepMode):
+                raise ValueError("Channel 3 did not return a Sweep")
+            masses = sweep.mode.mass_axis()
+            values = sweep.values[0]
+            if len(values) != len(masses) or not all(math.isfinite(float(v)) for v in values):
+                raise ValueError("Invalid spectrum; no partial spectrum uploaded")
+
+            # Use the actual readback. Sweep values may be Current, not pressure.
+            report_units = sweep.metadata["reportUnits"]
+            report_type = sweep.metadata["reportType"]
+            if not isinstance(report_units, str) or not report_units:
+                raise ValueError("Missing reportUnits in channel readback")
+            if not isinstance(report_type, str) or not report_type:
+                raise ValueError("Missing reportType in channel readback")
+            if VALUE_FIELD == "Pressure[Torr]" and (
+                report_units.casefold() != "torr" or report_type.casefold() != "absolute"
+            ):
+                raise ValueError(
+                    "Pressure[Torr] requires reportUnits=Torr and reportType=Absolute; "
+                    f"got {report_units!r}/{report_type!r}. Configure verified instrument "
+                    "pressure reporting or explicitly set value_field for unconverted readings. "
+                    "Renaming a field does not convert current to pressure."
                 )
+            timestamp = record.channels[1]
+            if not isinstance(timestamp.mode, TimestampMode) or timestamp.metadata.get("startMassRaw") != 1:
+                raise ValueError("ScanElapsedTime[ms] requires the Timestamp schedule timer (startMassRaw=1)")
+            scan_elapsed_ms = int(timestamp.values[0])
+            influxdb_records = []
+            for mass, value in zip(masses, values, strict=True):
+                # Live device grids are exact hundredths of an AMU. Formatting avoids
+                # float artifacts creating extra series (e.g. 18.200000000000003).
+                amu = f"{float(mass):.2f}".rstrip("0").rstrip(".")
+                influxdb_records.append({
+                    "measurement": MEASUREMENT,
+                    "tags": {
+                        "source": "KJLC RGA",
+                        "Serial number": SERIAL_NUMBER,
+                        "channel": "3",
+                        "amu": amu,
+                    },
+                    "fields": {
+                        VALUE_FIELD: float(value),
+                        "ScanElapsedTime[ms]": scan_elapsed_ms,
+                    },
+                    "time": observed_ns,
+                })
+
+            if ARGS.dry_run:
                 log(
-                    f"{msg_il}Uploaded {len(influxdb_records)} mass points; "
-                    f"report_units={report_units}, report_type={report_type}, "
-                    f"acquisition={scan_returned - cycle_started:.3f} s."
+                    msg_il + f"Dry-run records, not uploaded; "
+                    f"report_units={report_units}, report_type={report_type}: {influxdb_records!r}"
                 )
-            except Exception as ex:
-                if ARGS.once:
-                    raise
-                lifetime_exception_count += 1
-                log_error(
-                    f"{msg_il}Upload failed ({lifetime_exception_count}/{EX_THRESHOLD} lifetime): "
-                    f"{type(ex).__name__}: {ex}. This scan is not queued for replay."
-                )
-                if lifetime_exception_count >= EX_THRESHOLD:
-                    log_error("Exception threshold reached. Raising to supervisor.")
-                    raise
+            else:
+                try:
+                    INFLUXDB_WRITE_API.write(
+                        bucket=INFLUXDB_BUCKET,
+                        org=INFLUXDB_ORG,
+                        record=influxdb_records,
+                        write_precision=influxdb_client.WritePrecision.NS,
+                    )
+                    log(
+                        f"{msg_il}Uploaded {len(influxdb_records)} mass points; "
+                        f"report_units={report_units}, report_type={report_type}, "
+                        f"acquisition={scan_returned - cycle_started:.3f} s."
+                    )
+                except Exception as ex:
+                    if ARGS.once:
+                        raise
+                    lifetime_exception_count += 1
+                    log_error(
+                        f"{msg_il}Upload failed ({lifetime_exception_count}/{EX_THRESHOLD} lifetime): "
+                        f"{type(ex).__name__}: {ex}. This scan is not queued for replay."
+                    )
+                    if lifetime_exception_count >= EX_THRESHOLD:
+                        log_error("Exception threshold reached. Raising to supervisor.")
+                        raise
 
         if ARGS.once:
             break

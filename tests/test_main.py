@@ -12,11 +12,11 @@ import tempfile
 import unittest
 from contextlib import ExitStack, redirect_stderr, redirect_stdout
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import numpy as np
 from influxdb_client import Point, WritePrecision
-from kjlc_rga import RGAChannel, RGAError, RGARecord, SweepMode, TimestampMode
+from kjlc_rga import ControlLostError, RGAChannel, RGAError, RGARecord, SweepMode, TimestampMode
 
 ROOT = Path(__file__).resolve().parents[1]
 SETTINGS = '''host = "instrument.invalid"
@@ -68,6 +68,7 @@ class Scenario:
         self.settings = SETTINGS
         self.args = []
         self.source_error = None
+        self.source_errors = {}
         self.upload_errors = set()
         self.signal_in_scan = None
         self.signal_in_upload = None
@@ -104,6 +105,8 @@ class Scenario:
             self.signals[self.signal_in_scan](self.signal_in_scan, None)
         if self.source_error is not None:
             raise self.source_error
+        if index in self.source_errors:
+            raise self.source_errors[index]
         return self.record
 
     def write(self, **kwargs: object) -> None:
@@ -166,7 +169,12 @@ class RelayTests(unittest.TestCase):
         self.assertEqual(s.exit_code, 130, s.stderr.getvalue())
         self.assertEqual(s.starts, [0, 10])
         self.assertEqual(s.waits, [6])
-        self.assertEqual(s.calls[0][1], {"scan_count": 1, "capacity": 1, "timeout": None, "force": True})
+        self.assertEqual(s.calls[0][1], {"scan_count": 1, "capacity": 1, "timeout": None})
+        self.assertTrue(all("force" not in kwargs for _, kwargs in s.calls))
+        s.source.request_control.assert_called_once_with(force=True)
+        self.assertEqual(s.source.mock_calls[:2], [
+            call.request_control(force=True), call.get("/mmsp/electronicsInfo/serialNumber"),
+        ])
         self.assertEqual(s.calls[0][0][3].mode.mass_axis().tolist(), [18, 18.2, 18.4])
 
     def test_overrun_finishes_scan_warns_and_starts_immediately(self) -> None:
@@ -320,16 +328,56 @@ class RelayTests(unittest.TestCase):
         self.assertEqual(s.exit_code, 1)
         self.assertEqual(s.writes, [])
 
-    def test_acquisition_failure_is_not_retried(self) -> None:
+    def test_acquisition_errors_count_without_reconnect_or_immediate_retry(self) -> None:
         s = Scenario()
+        s.scan_durations = [3, 3, 3]
         s.source_error = RGAError("cursor response lost")
+        s.run()
+        self.assertEqual(s.exit_code, 1)
+        self.assertEqual(s.starts, [0, 10, 20])
+        self.assertEqual(s.writes, [])
+        self.assertIn("Acquisition failed (3/3 lifetime)", s.stderr.getvalue())
+        s.source_factory.assert_called_once()
+        s.source.request_control.assert_called_once_with(force=True)
+        s.source.close.assert_called_once()
+        s.writer.close.assert_called_once()
+        s.influx.close.assert_called_once()
+
+    def test_control_loss_shares_upload_counter_without_forced_retake(self) -> None:
+        s = Scenario()
+        s.scan_durations = [3] * 5
+        s.upload_errors = {1}
+        s.source_errors = {1: ControlLostError("control taken"), 3: ControlLostError("control taken again")}
+        s.run()
+        self.assertEqual(s.exit_code, 1)
+        self.assertEqual(s.starts, [0, 10, 20, 30])
+        self.assertEqual(len(s.writes), 2)
+        self.assertIn("Upload failed (1/3 lifetime)", s.stderr.getvalue())
+        self.assertIn("Acquisition failed (2/3 lifetime)", s.stderr.getvalue())
+        self.assertIn("Acquisition failed (3/3 lifetime)", s.stderr.getvalue())
+        s.source.request_control.assert_called_once_with(force=True)
+        self.assertTrue(all("force" not in kwargs for _, kwargs in s.calls))
+        s.source.close.assert_called_once()
+
+    def test_once_control_loss_exits_without_forced_retake(self) -> None:
+        s = Scenario()
+        s.args = ["--once"]
+        s.source_error = ControlLostError("control taken")
         s.run()
         self.assertEqual(s.exit_code, 1)
         self.assertEqual(s.starts, [0])
         self.assertEqual(s.writes, [])
+        s.source.request_control.assert_called_once_with(force=True)
         s.source.close.assert_called_once()
-        s.writer.close.assert_called_once()
-        s.influx.close.assert_called_once()
+
+    def test_initial_control_failure_closes_without_acquiring(self) -> None:
+        s = Scenario()
+        s.source.request_control.side_effect = RGAError("control refused")
+        s.run()
+        self.assertEqual(s.exit_code, 1)
+        s.source.request_control.assert_called_once_with(force=True)
+        s.source.measure.assert_not_called()
+        s.source.close.assert_called_once()
 
     def test_upload_failure_count_is_lifetime_not_consecutive(self) -> None:
         s = Scenario()
