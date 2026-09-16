@@ -1,0 +1,6 @@
+[submodule "py-kjlc-rga"]
+	path = py-kjlc-rga
+	url = https://github.com/SinclairQuantumLab/py-kjlc-rga.git
+[submodule "imaq-secret"]
+	path = imaq-secret
+	url = https://github.com/SinclairQuantumLab/imaq-secret.git

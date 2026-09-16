@@ -1,0 +1,28 @@
+# Copy to settings.toml and configure the instrument before running.
+# All modes acquire one complete scan at a time. See README.md.
+scan_mode = "periodic" # periodic | fixed_padding | continuous
+
+# periodic: seconds between acquisition-call starts; overruns warn and skip sleep.
+interval_s = 60
+
+# fixed_padding: minimum seconds from scan return to the next acquisition call.
+# Upload time counts toward this pause. Ignored in other modes.
+padding_s = 5
+
+# Optional InfluxDB value field override. Default requires absolute Torr readback.
+# A different name stores the unconverted value; it does not change device units.
+# value_field = "Pressure[Torr]"
+
+host = "<HOST>" # Instrument IP address or HTTP(S) origin.
+# port = 80
+
+# Individual HTTP request timeout; never a deadline for the whole scan.
+timeout_s = 10
+
+# Timestamp uses channel 1; Sweep uses channel 3; channel 2 is disabled.
+# Filament, detector, calibration and reporting units are prepared separately.
+[scan]
+start_mass = 1
+stop_mass = 200
+ppamu = 5
+dwell_ms = 32
