@@ -197,10 +197,13 @@ setting commented out:
 
 The default requires actual `reportUnits="Torr"` and `reportType="Absolute"`
 readback (case-insensitive); otherwise the relay exits without uploading the
-scan. The library's existing device evidence says `Current`, so the pressure
-reporting path still needs verification on the instrument. An unknown `Pressure`
-label alone is not proof of Torr units. No pressure-reporting API writes or
-current-to-pressure conversion are guessed by this application.
+scan. The tested instrument returns `Current` and rejected both `Torr` and
+`Pressure` report-unit writes. Its web UI converts current locally, using a
+coefficient mapping that conflicts with the API descriptions and live tests.
+The library now provides explicit manual-based conversion, but the relay does
+not apply it until the appropriate calibration factors and units are established.
+The default pressure upload path therefore remains incomplete for this device;
+see the library's [pressure investigation](py-kjlc-rga/docs/pressure.md).
 
 To deliberately store another reported quantity, uncomment and rename the field,
 for example `value_field = "Signal"` for unconverted current readings. Actual
@@ -285,9 +288,11 @@ validation; registering SIGTERM does not make a forced Windows kill catchable.
   timeout to enforce a scan period.
 - A scan takes longer than its estimate: polling continues until a real result
   or a source error. Ctrl+C interrupts the scan and attempts cleanup.
-- Default field rejected: configure and verify absolute Torr reporting, or set
-  an explicit custom `value_field` for unconverted data. Changing a field label
-  does not convert a current. The default check also applies to dry-run.
+- Default field rejected: the tested device returns current, and selecting Torr
+  in its web UI does not change those raw API values. See the linked pressure
+  investigation; a verified library conversion is needed for pressure upload.
+  An explicit custom `value_field` can store unconverted readings. Renaming
+  the field does not convert units. The default check also applies to dry-run.
 
 ## Developer's note
 

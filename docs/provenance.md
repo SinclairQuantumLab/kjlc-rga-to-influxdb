@@ -255,3 +255,42 @@ All 30 offline tests and Ruff passed. Regression coverage verifies one startup
 takeover before serial read, unforced measurements, shared cumulative accounting
 across control loss/upload errors/successes, once behavior and startup cleanup.
 No device acquisition, upload or service restart was performed by the agent.
+
+## Investigate pressure conversion on the instrument (2026-09-16)
+
+The user subsequently authorized forced control, coefficient writes and actual
+scans to resolve the pressure path. The initial three sessions each forced control
+once; ordinary library measure calls acquired 54 finite test scans. Source code and
+numerical conversion were developed in the independent library. See its
+docs/pressure.md for the manual equation, coefficient sources and live results.
+
+At approximately 2e-6 Torr total pressure, increasing ppLinConst1 from 250 to
+25,000 raised mass-18 current by about 5% with ppLinearization on, but not with
+it off. The original coefficient and signal level were recovered. Doubling
+ppSensitivityFactor did not halve the raw current. Torr and Pressure report-unit
+writes were rejected, while Current was accepted. This contradicts treating the
+web UI's ppLinConst1 variable as a physical fragmentation factor.
+
+The library now exposes explicit manual-based partial_pressure_torr and a
+read-only read_pressure_parameters method, retaining raw acquisition data.
+Seven focused offline conversion/parameter tests passed; the parameter getter
+and existing finite acquisition path were also exercised on hardware. Lint was
+limited to affected library files. No unrelated suite was rerun.
+
+Pressure conversion is not yet wired into this relay: choosing valid species,
+detector and sensitivity/unit factors remains distinct from reproducing a UI
+number. README and the existing error message no longer instruct the operator
+to configure an unsupported Torr report-unit value. No real InfluxDB upload was
+performed. Original ion-source coefficients and the off linearization state
+were restored; the final device scan setup remains the short experimental sweep.
+
+After further user steering, a crossed matrix collected an additional 222 scans
+over 74 conditions: 32 coefficient pairs with linearization off/on and 10
+interspersed references. It includes zero/unit values, swapped pairs, negatives,
+1,000/10,000 midrange values, and larger values up to 100,000. Per-scan total
+pressure and raw timestamps accompany each 18-44 amu sweep. All planned matrix
+conditions completed and before/after parameter readbacks matched. Raw datasets
+remain under ignored tmp/pressure-coefficient-dataset and the two source-run
+directories; no fitted coefficient model was selected. See library docs for
+separate total-pressure calibration and exploratory failures excluded from the
+completed matrix. Final coefficients are 250/0 and linearization is off.

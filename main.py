@@ -182,9 +182,9 @@ try:
             ):
                 raise ValueError(
                     "Pressure[Torr] requires reportUnits=Torr and reportType=Absolute; "
-                    f"got {report_units!r}/{report_type!r}. Configure verified instrument "
-                    "pressure reporting or explicitly set value_field for unconverted readings. "
-                    "Renaming a field does not convert current to pressure."
+                    f"got {report_units!r}/{report_type!r}. Raw current requires a verified "
+                    "library calibration before pressure upload. An explicit value_field "
+                    "can label unconverted readings; renaming does not convert units."
                 )
             timestamp = record.channels[1]
             if not isinstance(timestamp.mode, TimestampMode) or timestamp.metadata.get("startMassRaw") != 1:
