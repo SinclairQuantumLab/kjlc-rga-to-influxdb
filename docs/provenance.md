@@ -196,3 +196,17 @@ Skill source refresh reported current-dirty, upstream
 origin/feature/to-influxdb-development, ahead/behind 0/0. Reusable guidance about
 validation versus stored metadata and evidence-based timer naming was promoted
 to author-preferences.md and passed the official skill validator.
+
+## Settings/template synchronization (2026-09-16)
+
+At the user's explicit request, restored the heading "Mass vs pressure scan
+configuration" and synchronized the settings template with the current local
+structure, comments, and reusable defaults; the host remains a placeholder.
+Preserved the user's latest mass-array and AMU comments. Moved the scan table
+after the root options because the previous placement nested scan_mode under
+scan. The template and README example now select continuous mode.
+
+Verified sanitized text equality, parsed TOML scopes, and template execution
+through the existing mocked-I/O harness. All 27 offline tests and Ruff passed.
+No device or InfluxDB operation occurred. The skill now explicitly distinguishes
+questions from edit requests and requires same-task template synchronization.

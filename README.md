@@ -70,19 +70,20 @@ and unattended service operation still need hardware acceptance.
 ```toml
 host = "<HOST>"
 # port = 80
-timeout_s = 10
+timeout_s = 3
 
 # Uncomment exactly one mode block.
-# scan_mode = "continuous"
+scan_mode = "continuous"
 
-scan_mode = "periodic"
-interval_s = 60
+# scan_mode = "periodic"
+# interval_s = 0.1
 
 # scan_mode = "fixed_padding"
 # padding_s = 5
 
 # value_field = "Pressure[Torr]" # Optional override; normally leave commented.
 
+# Mass vs pressure scan configuration
 [scan]
 start_mass = 1
 stop_mass = 200

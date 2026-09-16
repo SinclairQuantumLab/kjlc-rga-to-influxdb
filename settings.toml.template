@@ -1,19 +1,19 @@
 # Copy to settings.toml and configure the instrument before running.
 
-host = "<HOST>" # Instrument IP address or HTTP(S) origin.
+host = "<HOST>"
 # port = 80
-timeout_s = 10 # Individual HTTP request timeout, not a whole-scan deadline.
+timeout_s = 3 # HTTP request timeout
 
 # Scan mode: uncomment exactly one mode block.
 
-# continuous: no added pause between scans.
-# scan_mode = "continuous"
+## continuous: no added pause between scans.
+scan_mode = "continuous"
 
-# periodic: seconds between scan starts; overruns warn and skip the pause.
-scan_mode = "periodic"
-interval_s = 60
+# ## periodic: seconds between scan starts; overruns warn and skip the pause.
+# scan_mode = "periodic"
+# interval_s = 0.1
 
-# fixed_padding: fixed pause duration between scans, in seconds.
+# ## fixed_padding: fixed pause duration between scans, in seconds.
 # Upload time counts toward this pause.
 # scan_mode = "fixed_padding"
 # padding_s = 5
@@ -22,13 +22,10 @@ interval_s = 60
 # A different name stores the unconverted value; it does not change device units.
 # value_field = "Pressure[Torr]"
 
-# Timestamp uses channel 1; Sweep uses channel 3; channel 2 is disabled.
-# Filament, detector, calibration and reporting units are prepared separately.
-# Both mass endpoints are included; no automatic mass margin.
+# Mass vs pressure scan configuration
+# mass array = start_mass + np.arange(n) / ppamu
 [scan]
-start_mass = 1
-stop_mass = 200
+start_mass = 1 # amu
+stop_mass = 200 # amu
 ppamu = 5 # Points per amu; mass spacing = 1 / ppamu.
-# Measurement time at each mass point, in milliseconds (32 = 32 ms per point).
-# A nonzero device dwellGlobal overrides this value.
-dwell_ms = 32
+dwell_ms = 32 # measurement time at each mass point
