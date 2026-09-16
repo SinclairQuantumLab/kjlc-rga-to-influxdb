@@ -1,28 +1,34 @@
 # Copy to settings.toml and configure the instrument before running.
-# All modes acquire one complete scan at a time. See README.md.
-scan_mode = "periodic" # periodic | fixed_padding | continuous
 
-# periodic: seconds between acquisition-call starts; overruns warn and skip sleep.
+host = "<HOST>" # Instrument IP address or HTTP(S) origin.
+# port = 80
+timeout_s = 10 # Individual HTTP request timeout, not a whole-scan deadline.
+
+# Scan mode: uncomment exactly one mode block.
+
+# continuous: no added pause between scans.
+# scan_mode = "continuous"
+
+# periodic: seconds between scan starts; overruns warn and skip the pause.
+scan_mode = "periodic"
 interval_s = 60
 
-# fixed_padding: minimum seconds from scan return to the next acquisition call.
-# Upload time counts toward this pause. Ignored in other modes.
-padding_s = 5
+# fixed_padding: fixed pause duration between scans, in seconds.
+# Upload time counts toward this pause.
+# scan_mode = "fixed_padding"
+# padding_s = 5
 
 # Optional InfluxDB value field override. Default requires absolute Torr readback.
 # A different name stores the unconverted value; it does not change device units.
 # value_field = "Pressure[Torr]"
 
-host = "<HOST>" # Instrument IP address or HTTP(S) origin.
-# port = 80
-
-# Individual HTTP request timeout; never a deadline for the whole scan.
-timeout_s = 10
-
 # Timestamp uses channel 1; Sweep uses channel 3; channel 2 is disabled.
 # Filament, detector, calibration and reporting units are prepared separately.
+# Both mass endpoints are included; no automatic mass margin.
 [scan]
 start_mass = 1
 stop_mass = 200
-ppamu = 5
+ppamu = 5 # Points per amu; mass spacing = 1 / ppamu.
+# Measurement time at each mass point, in milliseconds (32 = 32 ms per point).
+# A nonzero device dwellGlobal overrides this value.
 dwell_ms = 32

@@ -68,27 +68,44 @@ and unattended service operation still need hardware acceptance.
 ## Scan configuration and timing
 
 ```toml
-scan_mode = "periodic" # periodic | fixed_padding | continuous
-interval_s = 60
-padding_s = 5
-# value_field = "Pressure[Torr]" # Optional override; normally leave commented.
 host = "<HOST>"
 # port = 80
 timeout_s = 10
 
+# Uncomment exactly one mode block.
+# scan_mode = "continuous"
+
+scan_mode = "periodic"
+interval_s = 60
+
+# scan_mode = "fixed_padding"
+# padding_s = 5
+
+# value_field = "Pressure[Torr]" # Optional override; normally leave commented.
+
 [scan]
 start_mass = 1
 stop_mass = 200
-ppamu = 5
-dwell_ms = 32
+ppamu = 5 # Points per amu; mass spacing = 1 / ppamu.
+dwell_ms = 32 # Milliseconds spent measuring each mass point.
 ```
 
 Channel 1 records the raw device timestamp, channel 3 records the Sweep, and
 channel 2 is disabled. Sweep endpoints are inclusive: `(200 - 1) * 5 + 1 = 996`
 mass points. Endpoints must lie on the selected mass grid. The library checks
 the device's supported `ppamu` values and verifies actual configuration readback.
-An existing nonzero device `dwellGlobal` overrides per-channel dwell; review it
-on the instrument. Reporting, calibration and detector settings are retained.
+There is no automatic half-AMU margin: this example returns masses
+`1.0, 1.2, ..., 199.8, 200.0`. To cover the sides of the endpoint peaks, request
+a wider range explicitly within the instrument's mass limits. At `ppamu=5`,
+shift boundaries by multiples of 0.2 AMU to keep integer mass points on the grid;
+a 0.5 AMU shift would miss them. At `ppamu=10`, a half-AMU shift preserves them.
+
+`dwell_ms` is the measurement time at each mass point, not the pause between
+scans. A value of 32 requests 32 ms per point; increasing it lengthens the scan.
+An existing nonzero device `dwellGlobal` overrides per-channel dwell. Reporting,
+calibration and detector settings are retained. See the library's captured
+[scan setup API reference](py-kjlc-rga/device-docs/api-guide/text/scanSetup.txt)
+for the device definitions.
 
 All modes begin immediately and wait for the **actual complete scan** before
 uploading or starting another scan. The library uses the device's first-scan

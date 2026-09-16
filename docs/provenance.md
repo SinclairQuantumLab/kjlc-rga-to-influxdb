@@ -136,3 +136,28 @@ Plain `uv sync` and imports of `kjlc_rga` and `influxdb_client` passed using the
 project-selected interpreter. Metadata, lockfile, and runtime code are unchanged.
 This documentation follow-up did not run device acquisition or upload, read
 credential contents, or restart a service.
+
+## Settings structure and acquisition terms (2026-09-16)
+
+The user reorganized local settings into connection settings, alternative mode
+blocks, and a final scan table. This structure matches the parser: only the
+selected mode's timing key is required. Corrected the commented fixed-padding
+selector and aligned the tracked template and README examples with that layout.
+Local deployment values and mode selection are preserved; the template retains
+its periodic 60-second default. Fixed-padding wording now says "fixed pause
+duration between scans" and explicitly retains upload time within that pause.
+Runtime scheduling is unchanged.
+
+The pinned library's SweepMode.mass_axis and live configuration readback use
+inclusive requested endpoints with spacing 1 / ppamu, without automatic mass
+margin. The captured scanSetup API defines dwell as measurement milliseconds
+per point and documents the nonzero dwellGlobal override. Settings and README
+now explain these terms. README also notes that half-AMU shifts at ppamu=5 miss
+integer coordinates, while ppamu=10 preserves them.
+
+All 26 offline relay tests and Ruff passed. Each template mode was additionally
+parsed and executed through the existing simulated-I/O harness with inactive
+timing keys absent. The real public model confirmed 996 points from 1 through
+200 at ppamu=5 and the fractional-boundary grid examples. No instrument or
+InfluxDB connection was made. Reusable comment and mode-example guidance was
+promoted to the canonical skill's author-preferences reference and validated.
